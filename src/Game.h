@@ -2,6 +2,10 @@
 #include "structs.h"
 #include "SDL.h"
 #include "SDL_opengl.h"
+#include <memory>
+
+class Particle;
+class BoundingBox;
 
 class Game
 {
@@ -64,4 +68,7 @@ private:
 	// FUNCTIONS
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
+
+	std::unique_ptr<BoundingBox> m_pBoundingBox;
+	std::unique_ptr<Particle> m_pParticle;
 };

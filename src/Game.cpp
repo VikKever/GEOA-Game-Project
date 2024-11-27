@@ -7,6 +7,11 @@
 #include "Game.h"
 #include "utils.h"
 #include "structs.h"
+#include "FlyFish.h"
+
+#include "Particle.h"
+#include "BoundingBox.h"
+#include "GAUtils.h"
 
 Game::Game(const Window& window)
 	: m_Window{ window }
@@ -17,6 +22,13 @@ Game::Game(const Window& window)
 	, m_MaxElapsedSeconds{ 0.1f }
 {
 	InitializeGameEngine();
+
+	ThreeBlade pos{ m_Viewport.width / 2, m_Viewport.height / 2, 1.f, 1.f };
+	TwoBlade moveDirection{ -10, 0, -0.5f, 0, 0, 0 };
+	Motor velocity{ Motor::Translation(100.f, moveDirection) };
+	m_pParticle = std::make_unique<Particle>(pos, velocity, Motor{});
+
+	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
 }
 
 Game::~Game()
@@ -193,8 +205,13 @@ void Game::CleanupGameEngine()
 
 void Game::Update(float elapsedSec)
 {
+	m_pParticle->Update(elapsedSec, m_pBoundingBox.get());
 }
 
 void Game::Draw() const
 {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	m_pParticle->Draw();
 }
