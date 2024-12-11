@@ -7,7 +7,7 @@ class BoundingBox
 public:
 	BoundingBox(const Rectf& box);
 
-	bool Collides(const ThreeBlade& point, OneBlade& collision) const;
+	bool Collides(const ThreeBlade& point, OneBlade& collision, float offset) const;
 private:
 	OneBlade m_leftPlane;
 	OneBlade m_rightPlane;

@@ -9,24 +9,24 @@ BoundingBox::BoundingBox(const Rectf& box)
 {
 }
 
-bool BoundingBox::Collides(const ThreeBlade& point, OneBlade& collision) const
+bool BoundingBox::Collides(const ThreeBlade& point, OneBlade& collision, float offset) const
 {
-	if (GAUtils::IsBehindPlane(point, m_leftPlane))
+	if ((point & collision) - offset < 0.f)
 	{
 		collision = m_leftPlane;
 		return true;
 	}
-	else if (GAUtils::IsBehindPlane(point, m_rightPlane))
+	else if ((point & collision) - offset < 0.f)
 	{
 		collision = m_rightPlane;
 		return true;
 	}
-	else if (GAUtils::IsBehindPlane(point, m_bottomPlane))
+	else if ((point & collision) - offset < 0.f)
 	{
 		collision = m_bottomPlane;
 		return true;
 	}
-	else if (GAUtils::IsBehindPlane(point, m_topPlane))
+	else if ((point & collision) - offset < 0.f)
 	{
 		collision = m_topPlane;
 		return true;

@@ -13,9 +13,10 @@ public:
 	void Update(float elapsedSec, const BoundingBox* boundingBox);
 
 	ThreeBlade GetPos() const;
-private:
-	static constexpr float SIZE{ 20.f };
 
+	static constexpr float SIZE{ 10.f };
+
+private:
 	ThreeBlade m_pos;
 	Motor m_velocity;
 	Motor m_rotation;
