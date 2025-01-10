@@ -21,6 +21,8 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
+	, m_ballsRolling{ true }
+	, m_playArea{ 50.f, 50.f, window.width - 100.f, window.height - 100.f}
 {
 	InitializeGameEngine();
 
@@ -35,7 +37,7 @@ Game::Game(const Window& window)
 	//}
 	SetupBalls();
 
-	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
+	m_pBoundingBox = std::make_unique<BoundingBox>(m_playArea);
 
 	m_pCue = std::make_unique<Cue>(m_pWhiteBall.get());
 }
@@ -234,22 +236,37 @@ void Game::SetupBalls()
 				startPos.y + (row * verticalDst) - (column * Ball::SIZE / 2),
 				0.f, 1.f
 			};
-			m_redBalls.push_back(Ball{ pos, Motor{} });
+			m_redBalls.push_back(Ball{ pos, Motor{1, 0, 0, 0, 0, 0, 0, 0} });
 		}
 	}
 
 	// Create white ball
 	// =======================
-	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f },  Motor::Translation(1000.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
+	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor::Translation(500.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
+}
+
+void Game::CheckBallsRolling()
+{
+	m_ballsRolling = false;
+	for (const Ball& ball : m_redBalls)
+	{
+		m_ballsRolling |= ball.IsMoving();
+	}
+	m_ballsRolling |= m_pWhiteBall->IsMoving();
 }
 
 void Game::Update(float elapsedSec)
 {
-	// update white ball
-	m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get());
-
-	if (m_redBalls.size() > 0)
+	if (m_ballsRolling)
 	{
+		// check if there are no longer balls rolling and the cue can appear again
+		CheckBallsRolling();
+
+		// update white ball
+		m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get());
+
+		if (m_redBalls.size() <= 0) return;
+
 		// update red balls
 		for (Ball& particle : m_redBalls)
 		{
@@ -279,23 +296,35 @@ void Game::Update(float elapsedSec)
 		//	m_redBalls.erase(removeIt);
 		//}
 	}
-
-	int x, y;
-	SDL_GetMouseState(&x, &y);
-	m_pCue->Update(Point2f{float(x), float(m_Viewport.height - y)});
+	else
+	{
+		int x, y;
+		Uint32 mouseState = SDL_GetMouseState(&x, &y);
+		bool isShooting{ (mouseState & SDL_BUTTON(1)) != 0 };
+		m_pCue->Update(Point2f{ float(x), float(m_Viewport.height - y) }, isShooting);
+		if (isShooting)
+		{
+			m_ballsRolling = m_pCue->CheckHitBall();
+		}
+	}
 }
 
 void Game::Draw() const
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.1f, 0.25f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	// draw game area
+	utils::SetColor(Color4f{ 0.f, 0.1f, 0.f, 1.f });
+	utils::FillRect(m_playArea);
+
+	// draw balls
 	for (const Ball& particle : m_redBalls)
 	{
 		particle.Draw();
 	}
-
 	m_pWhiteBall->Draw();
 
-	m_pCue->Draw();
+	// draw cue
+	if (!m_ballsRolling) m_pCue->Draw();
 }

@@ -72,6 +72,7 @@ private:
 	void CleanupGameEngine( );
 
 	void SetupBalls();
+	void CheckBallsRolling();
 
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
 
@@ -79,4 +80,8 @@ private:
 	std::unique_ptr<Ball> m_pWhiteBall;
 
 	std::unique_ptr<Cue> m_pCue;
+
+	const Rectf m_playArea;
+
+	bool m_ballsRolling;
 };

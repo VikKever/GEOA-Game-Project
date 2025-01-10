@@ -39,6 +39,11 @@ void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
 	// (otherwise there would be energy losses after a while)
 	m_velocity[6] = 0.f;
 	m_velocity[0] = 1.f;
+
+	// set velocity to 0 when it get too small
+	if (m_velocity.VNorm() < MIN_SPEED) m_velocity = Motor{ 1, 0, 0, 0, 0, 0, 0, 0 };
+
+	m_pos.Normalize();
 }
 
 void Ball::CheckParticleCollision(Ball& other)
@@ -105,9 +110,24 @@ void Ball::CheckParticleCollision(Ball& other)
 	}
 }
 
+void Ball::ApplyForce(const Motor& translationMotor)
+{
+	m_velocity = translationMotor * m_velocity;
+}
+
+bool Ball::IsMoving() const
+{
+	return m_velocity.VNorm() > MIN_SPEED;
+}
+
 ThreeBlade Ball::GetPos() const
 {
 	return m_pos;
+}
+
+ThreeBlade Ball::GetFlatPos() const
+{
+	return ThreeBlade{ m_pos[0], m_pos[1], 0, 1 };;
 }
 
 void Ball::Move(float elapsedSec)

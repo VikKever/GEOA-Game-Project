@@ -13,6 +13,11 @@ namespace GAUtils
 		return ((line | referencePoint) * referencePoint).Grade2();
 	}
 
+	inline ThreeBlade Project(const ThreeBlade& point, const TwoBlade& referenceLine)
+	{
+		return ((point | referenceLine) * referenceLine).Grade3();
+	}
+
 	inline Motor Reject(const Motor& motor, const TwoBlade& referenceLine)
 	{
 		return ((motor ^ referenceLine) * referenceLine);
