@@ -13,6 +13,7 @@
 #include "BoundingBox.h"
 #include "GAUtils.h"
 #include "Cue.h"
+#include "Hole.h"
 
 Game::Game(const Window& window)
 	: m_Window{ window }
@@ -35,7 +36,9 @@ Game::Game(const Window& window)
 	//	//Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
 	//	m_redBalls.emplace_back(Ball{ pos1, Motor{} });
 	//}
-	SetupBalls();
+	SetupRedBalls();
+	InitWhiteBall();
+	SetupHoles();
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_playArea);
 
@@ -214,7 +217,7 @@ void Game::CleanupGameEngine()
 
 }
 
-void Game::SetupBalls()
+void Game::SetupRedBalls()
 {
 	const Point2f startPos{ m_Viewport.width / 3, m_Viewport.height / 2 };
 	const int numColumns{ 5 };
@@ -239,10 +242,32 @@ void Game::SetupBalls()
 			m_redBalls.push_back(Ball{ pos, Motor{1, 0, 0, 0, 0, 0, 0, 0} });
 		}
 	}
+}
 
-	// Create white ball
-	// =======================
-	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor::Translation(500.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
+void Game::InitWhiteBall()
+{
+	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor{ 1, 0, 0, 0, 0, 0, 0, 0 }/*Motor::Translation(500.f, TwoBlade{ -1, 0, 0, 0, 0, 0 })*/, true);
+	
+	// make sure the cue still points to the ball
+	m_pCue = std::make_unique<Cue>(m_pWhiteBall.get());
+}
+
+void Game::SetupHoles()
+{
+	const Rectf holeArea{ m_playArea.left + 10.f, m_playArea.bottom + 10.f, m_playArea.width - 20.f, m_playArea.height - 20.f };
+
+	m_holes.reserve(6);
+	for (int row{}; row < 2; ++row)
+	{
+		for (int column{}; column < 3; ++column)
+		{
+			m_holes.push_back(Hole{ ThreeBlade{
+				holeArea.left + column * holeArea.width / 2,
+				holeArea.bottom + row * holeArea.height,
+				0, 1
+			} });
+		}
+	}
 }
 
 void Game::CheckBallsRolling()
@@ -253,6 +278,15 @@ void Game::CheckBallsRolling()
 		m_ballsRolling |= ball.IsMoving();
 	}
 	m_ballsRolling |= m_pWhiteBall->IsMoving();
+}
+
+bool Game::FallsInHole(const Ball& ball)
+{
+	for (const Hole& hole : m_holes)
+	{
+		if (hole.FallsIn(ball)) return true;
+	}
+	return false;
 }
 
 void Game::Update(float elapsedSec)
@@ -289,12 +323,19 @@ void Game::Update(float elapsedSec)
 			m_pWhiteBall->CheckParticleCollision(m_redBalls[idx]);
 		}
 
-		//// remove the balls that died
-		//auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(), [](const Ball& ball) { return ball.HasDied(); }) };
-		//if (removeIt != m_redBalls.end())
-		//{
-		//	m_redBalls.erase(removeIt);
-		//}
+		// remove the red balls that fell into a hole
+		auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(), 
+			[&](const Ball& ball) { return FallsInHole(ball); }) };
+		if (removeIt != m_redBalls.end())
+		{
+			m_redBalls.erase(removeIt);
+		}
+
+		// if the white ball fals into a hole, it gets reset back to its starting position
+		if (FallsInHole(*m_pWhiteBall.get()))
+		{
+			InitWhiteBall();
+		}
 	}
 	else
 	{
@@ -311,12 +352,18 @@ void Game::Update(float elapsedSec)
 
 void Game::Draw() const
 {
-	glClearColor(0.1f, 0.25f, 0.1f, 1.0f);
+	glClearColor(0.15f, 0.3f, 0.15f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	// draw game area
-	utils::SetColor(Color4f{ 0.f, 0.1f, 0.f, 1.f });
+	utils::SetColor(Color4f{ 0.05f, 0.2f, 0.05f, 1.f });
 	utils::FillRect(m_playArea);
+
+	// draw holes
+	for (const Hole& hole : m_holes)
+	{
+		hole.Draw();
+	}
 
 	// draw balls
 	for (const Ball& particle : m_redBalls)

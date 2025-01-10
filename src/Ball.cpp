@@ -27,7 +27,7 @@ void Ball::Draw() const
 	utils::FillEllipse(shape);
 
 	utils::SetColor(Color4f{ 1.f, 1.f, 1.f, 1.f });
-	utils::DrawEllipse(shape);
+	//utils::DrawEllipse(shape);
 }
 
 void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)

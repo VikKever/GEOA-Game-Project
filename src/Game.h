@@ -8,6 +8,7 @@
 class Ball;
 class BoundingBox;
 class Cue;
+class Hole;
 
 class Game
 {
@@ -71,17 +72,21 @@ private:
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
 
-	void SetupBalls();
+	void SetupRedBalls();
+	void InitWhiteBall();
+	void SetupHoles();
 	void CheckBallsRolling();
+	bool FallsInHole(const Ball& ball);
 
+	const Rectf m_playArea;
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
+
+	std::vector<Hole> m_holes;
 
 	std::vector<Ball> m_redBalls;
 	std::unique_ptr<Ball> m_pWhiteBall;
 
 	std::unique_ptr<Cue> m_pCue;
-
-	const Rectf m_playArea;
 
 	bool m_ballsRolling;
 };
