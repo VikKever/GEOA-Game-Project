@@ -79,17 +79,14 @@ void Ball::CheckParticleCollision(Ball& other)
 		OneBlade offsetVector{ (joinLine | ThreeBlade{0, 0, 0, 1}) * 2 };
 		offsetVector = offsetVector / 2;
 
-		OneBlade e0{ 1, 0, 0, 0 };
-		Motor oneMotor{ 1, 0, 0, 0, 0, 0, 0, 0 };
-
 		// calculate translation (add a small offset to avoid bouncing two times)
 		const float translationAmount{ (SIZE - distance) / 2 + 0.01f };
 
 		// Create offset motor and translate the particles
-		const Motor thisOffset{ oneMotor - 0.5f * offsetVector * translationAmount * (-e0) };
+		const Motor thisOffset{ GAUtils::TranslationFromOneBlade(translationAmount * offsetVector)};
 		m_pos = (thisOffset * m_pos * ~thisOffset).Grade3();
 
-		const Motor otherOffset{ oneMotor + 0.5f * translationAmount * offsetVector * (-e0) };
+		const Motor otherOffset{ GAUtils::TranslationFromOneBlade(-translationAmount * offsetVector)};
 		other.m_pos = (otherOffset * other.m_pos * ~otherOffset).Grade3();
 
 		//// calculate energy after (debug)
@@ -124,9 +121,7 @@ void Ball::Move(float elapsedSec)
 	m_pos = (totMotor * m_pos * ~totMotor).Grade3();
 
 	// Add friction by multiplying by elapsedSec and resetting the norm
-	m_velocity *= std::powf(FRICTION, elapsedSec);
-	m_velocity[0] = 1.f;
-
+	m_velocity = GAUtils::Scale(m_velocity, std::powf(FRICTION, elapsedSec));
 }
 
 void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox)
@@ -134,9 +129,7 @@ void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox)
 	OneBlade collisionPlane;
 	if (boundingBox->Collides(m_pos, collisionPlane, SIZE / 2))
 	{
-		OneBlade e0{ 1, 0, 0, 0 };
-		Motor oneMotor{ 1, 0, 0, 0, 0, 0, 0, 0 };
-		Motor offset{ oneMotor + 0.5f * (SIZE / 2) * collisionPlane * (-e0) };
+		Motor offset{ GAUtils::TranslationFromOneBlade(- (SIZE / 2) * collisionPlane)};
 		m_pos = GAUtils::Project(m_pos, collisionPlane);
 		m_pos = (offset * m_pos * ~offset).Grade3();
 

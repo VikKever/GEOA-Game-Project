@@ -8,6 +8,11 @@ namespace GAUtils
 		return ((point | referencePlane) * referencePlane).Grade3();
 	}
 
+	inline TwoBlade Project(const TwoBlade& line, const ThreeBlade& referencePoint)
+	{
+		return ((line | referencePoint) * referencePoint).Grade2();
+	}
+
 	inline Motor Reject(const Motor& motor, const TwoBlade& referenceLine)
 	{
 		return ((motor ^ referenceLine) * referenceLine);
@@ -27,5 +32,13 @@ namespace GAUtils
 		// (otherwise the scaling wouldn't have an effect due to spacial equivalence)
 		result[0] = 1.f;
 		return result;
+	}
+
+	inline Motor TranslationFromOneBlade(const OneBlade& translation)
+	{
+		OneBlade e0{ 1, 0, 0, 0 };
+		Motor oneMotor{ 1, 0, 0, 0, 0, 0, 0, 0 };
+
+		return oneMotor - 0.5f * translation * (-e0);
 	}
 }

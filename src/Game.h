@@ -7,6 +7,7 @@
 
 class Ball;
 class BoundingBox;
+class Cue;
 
 class Game
 {
@@ -73,6 +74,9 @@ private:
 	void SetupBalls();
 
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
+
 	std::vector<Ball> m_redBalls;
 	std::unique_ptr<Ball> m_pWhiteBall;
+
+	std::unique_ptr<Cue> m_pCue;
 };

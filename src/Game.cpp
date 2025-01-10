@@ -12,6 +12,7 @@
 #include "Ball.h"
 #include "BoundingBox.h"
 #include "GAUtils.h"
+#include "Cue.h"
 
 Game::Game(const Window& window)
 	: m_Window{ window }
@@ -35,6 +36,8 @@ Game::Game(const Window& window)
 	SetupBalls();
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
+
+	m_pCue = std::make_unique<Cue>(m_pWhiteBall.get());
 }
 
 Game::~Game()
@@ -237,7 +240,7 @@ void Game::SetupBalls()
 
 	// Create white ball
 	// =======================
-	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor::Translation(1000.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
+	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f },  Motor::Translation(1000.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
 }
 
 void Game::Update(float elapsedSec)
@@ -276,6 +279,10 @@ void Game::Update(float elapsedSec)
 		//	m_redBalls.erase(removeIt);
 		//}
 	}
+
+	int x, y;
+	SDL_GetMouseState(&x, &y);
+	m_pCue->Update(Point2f{float(x), float(m_Viewport.height - y)});
 }
 
 void Game::Draw() const
@@ -289,4 +296,6 @@ void Game::Draw() const
 	}
 
 	m_pWhiteBall->Draw();
+
+	m_pCue->Draw();
 }
