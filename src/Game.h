@@ -3,6 +3,7 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include <memory>
+#include <vector>
 
 class Particle;
 class BoundingBox;
@@ -69,6 +70,7 @@ private:
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
 
+	const float m_numParticles;
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
-	std::unique_ptr<Particle> m_pParticle;
+	std::vector<Particle> m_particles;
 };

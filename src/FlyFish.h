@@ -175,7 +175,7 @@ public:
         }
         return d;
     }
-    [[nodiscard]] Derived operator + (Derived& b) const
+    [[nodiscard]] Derived operator + (const Derived& b) const
     {
         Derived d{};
         for (size_t idx{}; idx < DataSize; idx++)
@@ -184,7 +184,7 @@ public:
         }
         return d;
     }
-    [[nodiscard]] Derived operator - (Derived& b) const
+    [[nodiscard]] Derived operator - (const Derived& b) const
     {
         Derived d{};
         for (size_t idx{}; idx < DataSize; idx++)
@@ -193,18 +193,6 @@ public:
         }
         return d;
     }
-
-    //template<typename Other>
-    //[[nodiscard]] Derived Reject(Other& b) const
-    //{
-    //    return (*this ^ b) * ~b;
-    //}
-
-    //template<typename Other>
-    //[[nodiscard]] Derived Project(Other& b) const
-    //{
-    //    return (*this | b) * ~b;
-    //}
 
     friend [[nodiscard]] Derived operator*(float scalar, const Derived& element) {
         return element * scalar;
@@ -703,6 +691,11 @@ public:
     [[nodiscard]] float Norm() const
     {
         return std::sqrt(data[0] * data[0] + data[4] * data[4] + data[5] * data[5] + data[6] * data[6]);
+    }
+
+    [[nodiscard]] float VNorm() const
+    {
+        return std::sqrt(data[1] * data[1] + data[2] * data[2] + data[3] * data[3] + data[7] * data[7]);
     }
 
     [[nodiscard]] TwoBlade Grade2() const;

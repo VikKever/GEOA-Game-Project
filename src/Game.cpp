@@ -20,13 +20,29 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
+	, m_numParticles{ 50 }
 {
 	InitializeGameEngine();
 
-	ThreeBlade pos{ m_Viewport.width / 2, m_Viewport.height / 2, 1.f, 1.f };
-	TwoBlade moveDirection{ -10, 0, -0.5f, 0, 0, 0 };
-	Motor velocity{ Motor::Translation(100.f, moveDirection) };
-	m_pParticle = std::make_unique<Particle>(pos, velocity, Motor{});
+	m_particles.reserve(m_numParticles);
+
+	//ThreeBlade pos1{ m_Viewport.width / 2 , m_Viewport.height / 2 + 10, 0.f, 1.f};
+	//TwoBlade moveDirection1{ 10.f, 0.f, 0.f, 0, 0, 0};
+	//Motor velocity1{ Motor::Translation(0.f, moveDirection1) };
+	//m_particles.emplace_back(Particle{ pos1, velocity1 });
+
+	//ThreeBlade pos2{ m_Viewport.width / 2 , m_Viewport.height / 2 - 10, 0.f, 1.f };
+	//TwoBlade moveDirection2{ -10.f, 0.f, 0.f, 0, 0, 0 };
+	//Motor velocity2{ Motor::Translation(0.f, moveDirection2) };
+	//m_particles.emplace_back(Particle{ pos2, velocity2 });
+
+	for (int idx{}; idx < m_numParticles; ++idx)
+	{
+		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 1.f, 1.f};
+		TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0.f, 0, 0, 0};
+		Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
+		m_particles.emplace_back(Particle{ pos1, velocity1 });
+	}
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
 }
@@ -205,7 +221,19 @@ void Game::CleanupGameEngine()
 
 void Game::Update(float elapsedSec)
 {
-	m_pParticle->Update(elapsedSec, m_pBoundingBox.get());
+	for (Particle& particle : m_particles)
+	{
+		particle.Update(elapsedSec, m_pBoundingBox.get());
+	}
+
+	// only loop over every particle interaction once
+	for (int idx1{}; idx1 < m_particles.size() - 1; ++idx1)
+	{
+		for (int idx2{ idx1 + 1 }; idx2 < m_particles.size(); ++idx2)
+		{
+			m_particles[idx1].CheckParticleCollision(m_particles[idx2]);
+		}
+	}
 }
 
 void Game::Draw() const
@@ -213,5 +241,8 @@ void Game::Draw() const
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	m_pParticle->Draw();
+	for (const Particle& particle : m_particles)
+	{
+		particle.Draw();
+	}
 }

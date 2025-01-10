@@ -11,22 +11,22 @@ BoundingBox::BoundingBox(const Rectf& box)
 
 bool BoundingBox::Collides(const ThreeBlade& point, OneBlade& collision, float offset) const
 {
-	if ((point & collision) - offset < 0.f)
+	if ((point & m_leftPlane) < offset)
 	{
 		collision = m_leftPlane;
 		return true;
 	}
-	else if ((point & collision) - offset < 0.f)
+	else if ((point & m_rightPlane) < offset)
 	{
 		collision = m_rightPlane;
 		return true;
 	}
-	else if ((point & collision) - offset < 0.f)
+	else if ((point & m_bottomPlane) < offset)
 	{
 		collision = m_bottomPlane;
 		return true;
 	}
-	else if ((point & collision) - offset < 0.f)
+	else if ((point & m_topPlane) < offset)
 	{
 		collision = m_topPlane;
 		return true;
