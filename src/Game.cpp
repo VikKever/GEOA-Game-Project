@@ -15,6 +15,8 @@
 #include "Cue.h"
 #include "Hole.h"
 
+int Game::m_points{ 0 };
+
 Game::Game(const Window& window)
 	: m_Window{ window }
 	, m_Viewport{ 0,0,window.width,window.height }
@@ -22,8 +24,9 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
-	, m_ballsRolling{ true }
+	, m_ballsRolling{ false }
 	, m_playArea{ 50.f, 50.f, window.width - 100.f, window.height - 100.f}
+	, m_isFirstShot{ true }
 {
 	InitializeGameEngine();
 
@@ -254,20 +257,19 @@ void Game::InitWhiteBall()
 
 void Game::SetupHoles()
 {
-	const Rectf holeArea{ m_playArea.left + 10.f, m_playArea.bottom + 10.f, m_playArea.width - 20.f, m_playArea.height - 20.f };
-
 	m_holes.reserve(6);
-	for (int row{}; row < 2; ++row)
-	{
-		for (int column{}; column < 3; ++column)
-		{
-			m_holes.push_back(Hole{ ThreeBlade{
-				holeArea.left + column * holeArea.width / 2,
-				holeArea.bottom + row * holeArea.height,
-				0, 1
-			} });
-		}
-	}
+
+	// left holes
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + 12.f, m_playArea.bottom + 12.f, 0, 1 } });
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + 12.f, m_playArea.bottom + m_playArea.height - 12.f, 0, 1 } });
+
+	// middle holes
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width / 2, m_playArea.bottom + 10.f, 0, 1 } });
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width / 2, m_playArea.bottom + m_playArea.height - 10.f, 0, 1 } });
+
+	// right holes
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width - 12.f, m_playArea.bottom + 12.f, 0, 1 } });
+	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width - 12.f, m_playArea.bottom + m_playArea.height - 12.f, 0, 1 } });
 }
 
 void Game::CheckBallsRolling()
@@ -278,6 +280,11 @@ void Game::CheckBallsRolling()
 		m_ballsRolling |= ball.IsMoving();
 	}
 	m_ballsRolling |= m_pWhiteBall->IsMoving();
+
+	if (!m_ballsRolling)
+	{
+		m_isFirstShot = false;
+	}
 }
 
 bool Game::FallsInHole(const Ball& ball)
@@ -291,54 +298,55 @@ bool Game::FallsInHole(const Ball& ball)
 
 void Game::Update(float elapsedSec)
 {
+	// update white ball
+	m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get(), m_isFirstShot);
+
+	if (m_redBalls.size() <= 0) return;
+
+	// update red balls
+	for (Ball& particle : m_redBalls)
+	{
+		particle.Update(elapsedSec, m_pBoundingBox.get(), m_isFirstShot);
+	}
+
+	// handle collisions between red balls
+	// only loop over every particle interaction once
+	for (int idx1{}; idx1 < m_redBalls.size() - 1; ++idx1)
+	{
+		for (int idx2{ idx1 + 1 }; idx2 < m_redBalls.size(); ++idx2)
+		{
+			m_redBalls[idx1].CheckParticleCollision(m_redBalls[idx2], m_isFirstShot);
+		}
+	}
+
+	// handle collisions between the white ball and red balls
+	for (int idx{}; idx < m_redBalls.size(); ++idx)
+	{
+		m_pWhiteBall->CheckParticleCollision(m_redBalls[idx], m_isFirstShot);
+	}
+
+	// remove the red balls that fell into a hole
+	auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(),
+		[&](const Ball& ball) { return FallsInHole(ball); }) };
+	if (removeIt != m_redBalls.end())
+	{
+		m_redBalls.erase(removeIt);
+	}
+
+	// if the white ball fals into a hole, it gets reset back to its starting position
+	if (FallsInHole(*m_pWhiteBall.get()))
+	{
+		InitWhiteBall();
+	}
+
 	if (m_ballsRolling)
 	{
 		// check if there are no longer balls rolling and the cue can appear again
 		CheckBallsRolling();
-
-		// update white ball
-		m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get());
-
-		if (m_redBalls.size() <= 0) return;
-
-		// update red balls
-		for (Ball& particle : m_redBalls)
-		{
-			particle.Update(elapsedSec, m_pBoundingBox.get());
-		}
-
-		// handle collisions between red balls
-		// only loop over every particle interaction once
-		for (int idx1{}; idx1 < m_redBalls.size() - 1; ++idx1)
-		{
-			for (int idx2{ idx1 + 1 }; idx2 < m_redBalls.size(); ++idx2)
-			{
-				m_redBalls[idx1].CheckParticleCollision(m_redBalls[idx2]);
-			}
-		}
-
-		// handle collisions between the white ball and red balls
-		for (int idx{}; idx < m_redBalls.size(); ++idx)
-		{
-			m_pWhiteBall->CheckParticleCollision(m_redBalls[idx]);
-		}
-
-		// remove the red balls that fell into a hole
-		auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(), 
-			[&](const Ball& ball) { return FallsInHole(ball); }) };
-		if (removeIt != m_redBalls.end())
-		{
-			m_redBalls.erase(removeIt);
-		}
-
-		// if the white ball fals into a hole, it gets reset back to its starting position
-		if (FallsInHole(*m_pWhiteBall.get()))
-		{
-			InitWhiteBall();
-		}
 	}
 	else
 	{
+		// update cue
 		int x, y;
 		Uint32 mouseState = SDL_GetMouseState(&x, &y);
 		bool isShooting{ (mouseState & SDL_BUTTON(1)) != 0 };

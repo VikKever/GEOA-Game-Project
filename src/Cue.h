@@ -20,6 +20,7 @@ private:
 	ThreeBlade m_cuePos;
 
 	bool m_isShooting;
+	float m_shootOffset;
 
-	ThreeBlade GetCueBackPoint(float angle, const TwoBlade& ballToCueLine) const;
+	static ThreeBlade MovePointAlongLine(const ThreeBlade& point, float distance, const TwoBlade& referenceLine, float angle = 0.f);
 };

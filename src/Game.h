@@ -54,6 +54,7 @@ public:
 		return m_Viewport;
 	}
 
+	static void AddPoints(int amount) { m_points += amount; }
 private:
 	// DATA MEMBERS
 	// The window properties
@@ -78,9 +79,10 @@ private:
 	void CheckBallsRolling();
 	bool FallsInHole(const Ball& ball);
 
+	static int m_points;
+
 	const Rectf m_playArea;
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
-
 	std::vector<Hole> m_holes;
 
 	std::vector<Ball> m_redBalls;
@@ -89,4 +91,5 @@ private:
 	std::unique_ptr<Cue> m_pCue;
 
 	bool m_ballsRolling;
+	bool m_isFirstShot;
 };

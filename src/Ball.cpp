@@ -21,8 +21,8 @@ void Ball::Draw() const
 	}
 	else
 	{
-		const float brighness{ m_pos[2] / m_pos[3] / TOT_LIVES };
-		utils::SetColor(Color4f{ brighness, 0.f, 0.f, 1.f });
+		const float healthValue{ m_pos[2] / m_pos[3] / TOT_LIVES };
+		utils::SetColor(Color4f{ healthValue * 0.5f + 0.5f, (1.f - healthValue) * 0.3f, (1.f - healthValue) * 0.2f, 1.f });
 	}
 	utils::FillEllipse(shape);
 
@@ -30,7 +30,7 @@ void Ball::Draw() const
 	//utils::DrawEllipse(shape);
 }
 
-void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
+void Ball::Update(float elapsedSec, const BoundingBox* boundingBox, bool isFirstShot)
 {
 	Move(elapsedSec);
 	CheckBoundingBoxCollision(boundingBox);
@@ -40,13 +40,10 @@ void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
 	m_velocity[6] = 0.f;
 	m_velocity[0] = 1.f;
 
-	// set velocity to 0 when it get too small
-	if (m_velocity.VNorm() < MIN_SPEED) m_velocity = Motor{ 1, 0, 0, 0, 0, 0, 0, 0 };
-
 	m_pos.Normalize();
 }
 
-void Ball::CheckParticleCollision(Ball& other)
+void Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
 {
 	// ignore the z-axis:
 	const ThreeBlade thisPos2D{ m_pos[0], m_pos[1], 0, 1 };
@@ -103,10 +100,21 @@ void Ball::CheckParticleCollision(Ball& other)
 		//	std::cout << "Energy difference! (" << energyDifference << " units)\n";
 		//}
 
-		// Remove one live of both particles
+		// Remove 1 live for collisions with a red ball, and 3 for collisions with the white ball
 		// ============================
-		if (!m_isWhiteBall) m_pos[2] -= 1.f;
-		if (!other.m_isWhiteBall)other.m_pos[2] -= 1.f;
+		if (!isFirstShot)
+		{
+			if (m_isWhiteBall) other.m_pos[2] -= 3.f;
+			else
+			{
+				if (other.m_isWhiteBall) m_pos[2] -= 3.f;
+				else
+				{
+					m_pos[2] -= 1.f;
+					other.m_pos[2] -= 1.f;
+				}
+			}
+		}
 	}
 }
 
@@ -144,19 +152,23 @@ void Ball::Move(float elapsedSec)
 	m_velocity = GAUtils::Scale(m_velocity, std::powf(FRICTION, elapsedSec));
 }
 
-void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox)
+void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox, bool isFirstShot)
 {
 	OneBlade collisionPlane;
+	// check whether the ball collides and save the plane it hit when it did
 	if (boundingBox->Collides(m_pos, collisionPlane, SIZE / 2))
 	{
-		Motor offset{ GAUtils::TranslationFromOneBlade(- (SIZE / 2) * collisionPlane)};
+		// project the position onto the plane
 		m_pos = GAUtils::Project(m_pos, collisionPlane);
+		// offset the ball with its radius
+		Motor offset{ GAUtils::TranslationFromOneBlade(-(SIZE / 2) * collisionPlane) };
 		m_pos = (offset * m_pos * ~offset).Grade3();
 
+		// miror the velocity
 		MultiVector transformedVelocity{ collisionPlane * m_velocity * ~collisionPlane };
 		m_velocity = transformedVelocity.ToMotor();
 
-		// Remove a life
-		if (!m_isWhiteBall) m_pos[2] -= 1.f;
+		// Remove a life when bouncing against a wall
+		if (!m_isWhiteBall && !isFirstShot) m_pos[2] -= 1.f;
 	}
 }
