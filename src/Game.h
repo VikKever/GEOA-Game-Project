@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-class Particle;
+class Ball;
 class BoundingBox;
 
 class Game
@@ -70,7 +70,9 @@ private:
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
 
-	const float m_numParticles;
+	void SetupBalls();
+
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
-	std::vector<Particle> m_particles;
+	std::vector<Ball> m_redBalls;
+	std::unique_ptr<Ball> m_pWhiteBall;
 };

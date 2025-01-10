@@ -9,7 +9,7 @@
 #include "structs.h"
 #include "FlyFish.h"
 
-#include "Particle.h"
+#include "Ball.h"
 #include "BoundingBox.h"
 #include "GAUtils.h"
 
@@ -20,29 +20,19 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
-	, m_numParticles{ 50 }
 {
 	InitializeGameEngine();
 
-	m_particles.reserve(m_numParticles);
+	//m_redBalls.reserve(m_numParticles);
 
-	//ThreeBlade pos1{ m_Viewport.width / 2 , m_Viewport.height / 2 + 10, 0.f, 1.f};
-	//TwoBlade moveDirection1{ 10.f, 0.f, 0.f, 0, 0, 0};
-	//Motor velocity1{ Motor::Translation(0.f, moveDirection1) };
-	//m_particles.emplace_back(Particle{ pos1, velocity1 });
-
-	//ThreeBlade pos2{ m_Viewport.width / 2 , m_Viewport.height / 2 - 10, 0.f, 1.f };
-	//TwoBlade moveDirection2{ -10.f, 0.f, 0.f, 0, 0, 0 };
-	//Motor velocity2{ Motor::Translation(0.f, moveDirection2) };
-	//m_particles.emplace_back(Particle{ pos2, velocity2 });
-
-	for (int idx{}; idx < m_numParticles; ++idx)
-	{
-		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 1.f, 1.f};
-		TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0.f, 0, 0, 0};
-		Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
-		m_particles.emplace_back(Particle{ pos1, velocity1 });
-	}
+	//for (int idx{}; idx < m_numParticles; ++idx)
+	//{
+	//	ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 0.f, 1.f};
+	//	//TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0};
+	//	//Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
+	//	m_redBalls.emplace_back(Ball{ pos1, Motor{} });
+	//}
+	SetupBalls();
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
 }
@@ -219,20 +209,72 @@ void Game::CleanupGameEngine()
 
 }
 
-void Game::Update(float elapsedSec)
+void Game::SetupBalls()
 {
-	for (Particle& particle : m_particles)
+	const Point2f startPos{ m_Viewport.width / 3, m_Viewport.height / 2 };
+	const int numColumns{ 5 };
+
+	// Create red balls
+	// =========================
+	const float horizontalDst{ Ball::SIZE * std::cosf(M_PI / 6) + 0.1f};
+	const float verticalDst{ Ball::SIZE + 0.1f };
+
+	// pascals formula for the total amount of balls (= 1 + 2 + 3 + ... + numColumns)
+	m_redBalls.reserve((numColumns * (numColumns + 1)) / 2);
+
+	for (int column{}; column < numColumns; ++column)
 	{
-		particle.Update(elapsedSec, m_pBoundingBox.get());
+		for (int row{}; row < column + 1; ++row)
+		{
+			ThreeBlade pos{
+				startPos.x - (column * horizontalDst),
+				startPos.y + (row * verticalDst) - (column * Ball::SIZE / 2),
+				0.f, 1.f
+			};
+			m_redBalls.push_back(Ball{ pos, Motor{} });
+		}
 	}
 
-	// only loop over every particle interaction once
-	for (int idx1{}; idx1 < m_particles.size() - 1; ++idx1)
+	// Create white ball
+	// =======================
+	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor::Translation(1000.f, TwoBlade{-1, 0, 0, 0, 0, 0}), true);
+}
+
+void Game::Update(float elapsedSec)
+{
+	// update white ball
+	m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get());
+
+	if (m_redBalls.size() > 0)
 	{
-		for (int idx2{ idx1 + 1 }; idx2 < m_particles.size(); ++idx2)
+		// update red balls
+		for (Ball& particle : m_redBalls)
 		{
-			m_particles[idx1].CheckParticleCollision(m_particles[idx2]);
+			particle.Update(elapsedSec, m_pBoundingBox.get());
 		}
+
+		// handle collisions between red balls
+		// only loop over every particle interaction once
+		for (int idx1{}; idx1 < m_redBalls.size() - 1; ++idx1)
+		{
+			for (int idx2{ idx1 + 1 }; idx2 < m_redBalls.size(); ++idx2)
+			{
+				m_redBalls[idx1].CheckParticleCollision(m_redBalls[idx2]);
+			}
+		}
+
+		// handle collisions between the white ball and red balls
+		for (int idx{}; idx < m_redBalls.size(); ++idx)
+		{
+			m_pWhiteBall->CheckParticleCollision(m_redBalls[idx]);
+		}
+
+		//// remove the balls that died
+		//auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(), [](const Ball& ball) { return ball.HasDied(); }) };
+		//if (removeIt != m_redBalls.end())
+		//{
+		//	m_redBalls.erase(removeIt);
+		//}
 	}
 }
 
@@ -241,8 +283,10 @@ void Game::Draw() const
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	for (const Particle& particle : m_particles)
+	for (const Ball& particle : m_redBalls)
 	{
 		particle.Draw();
 	}
+
+	m_pWhiteBall->Draw();
 }

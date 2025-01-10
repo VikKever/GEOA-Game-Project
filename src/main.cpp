@@ -7,7 +7,7 @@ int main(int argv, char** args)
 {
 	srand(static_cast<unsigned int>(time(nullptr)));
 
-	Window window{ "GEOA Project Demo", 720.f , 550.f };
+	Window window{ "GEOA Project Demo", 840.f , 420.f };
 	Game pGame{ window };
 	pGame.Run();
 
