@@ -9,6 +9,7 @@ class Ball;
 class BoundingBox;
 class Cue;
 class Hole;
+class Texture;
 
 class Game
 {
@@ -54,7 +55,7 @@ public:
 		return m_Viewport;
 	}
 
-	static void AddPoints(int amount) { m_points += amount; }
+	static void AddPoints(int amount);
 private:
 	// DATA MEMBERS
 	// The window properties
@@ -74,12 +75,15 @@ private:
 	void CleanupGameEngine( );
 
 	void SetupRedBalls();
-	void InitWhiteBall();
+	void ResetWhiteBall();
 	void SetupHoles();
 	void CheckBallsRolling();
 	bool FallsInHole(const Ball& ball);
+	void UpdateScoreText();
 
 	static int m_points;
+	int m_pointsOnText;
+	std::unique_ptr<Texture> m_pScoreText;
 
 	const Rectf m_playArea;
 	std::unique_ptr<BoundingBox> m_pBoundingBox;

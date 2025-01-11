@@ -150,6 +150,11 @@ void Ball::Move(float elapsedSec)
 
 	// Add friction by multiplying by elapsedSec and resetting the norm
 	m_velocity = GAUtils::Scale(m_velocity, std::powf(FRICTION, elapsedSec));
+
+	if (m_velocity.VNorm() < MIN_SPEED)
+	{
+		m_velocity = Motor{ 1, 0, 0, 0, 0, 0, 0, 0 };
+	}
 }
 
 void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox, bool isFirstShot)

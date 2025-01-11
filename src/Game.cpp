@@ -15,6 +15,8 @@
 #include "Cue.h"
 #include "Hole.h"
 
+#include "Texture.h"
+
 int Game::m_points{ 0 };
 
 Game::Game(const Window& window)
@@ -27,6 +29,7 @@ Game::Game(const Window& window)
 	, m_ballsRolling{ false }
 	, m_playArea{ 50.f, 50.f, window.width - 100.f, window.height - 100.f}
 	, m_isFirstShot{ true }
+	, m_pointsOnText{ 0 }
 {
 	InitializeGameEngine();
 
@@ -40,17 +43,22 @@ Game::Game(const Window& window)
 	//	m_redBalls.emplace_back(Ball{ pos1, Motor{} });
 	//}
 	SetupRedBalls();
-	InitWhiteBall();
+	ResetWhiteBall();
 	SetupHoles();
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_playArea);
 
-	m_pCue = std::make_unique<Cue>(m_pWhiteBall.get());
+	UpdateScoreText();
 }
 
 Game::~Game()
 {
 	CleanupGameEngine();
+}
+
+void Game::AddPoints(int amount)
+{
+	m_points += amount;
 }
 
 void Game::InitializeGameEngine()
@@ -247,7 +255,7 @@ void Game::SetupRedBalls()
 	}
 }
 
-void Game::InitWhiteBall()
+void Game::ResetWhiteBall()
 {
 	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor{ 1, 0, 0, 0, 0, 0, 0, 0 }/*Motor::Translation(500.f, TwoBlade{ -1, 0, 0, 0, 0, 0 })*/, true);
 	
@@ -296,8 +304,23 @@ bool Game::FallsInHole(const Ball& ball)
 	return false;
 }
 
+void Game::UpdateScoreText()
+{
+	m_pScoreText = std::make_unique<Texture>(std::to_string(m_points), "THEBOLDFONT_FREEVERSION.ttf", 20, Color4f{ 1, 1, 1, 1 });
+	if (!m_pScoreText->IsCreationOk())
+	{
+		std::cout << "ERROR loading score text\n";
+	}
+	m_pointsOnText = m_points;
+}
+
 void Game::Update(float elapsedSec)
 {
+	if (m_pointsOnText != m_points)
+	{
+		UpdateScoreText();
+	}
+
 	// update white ball
 	m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get(), m_isFirstShot);
 
@@ -336,7 +359,8 @@ void Game::Update(float elapsedSec)
 	// if the white ball fals into a hole, it gets reset back to its starting position
 	if (FallsInHole(*m_pWhiteBall.get()))
 	{
-		InitWhiteBall();
+		ResetWhiteBall();
+		AddPoints(-10);
 	}
 
 	if (m_ballsRolling)
@@ -382,4 +406,10 @@ void Game::Draw() const
 
 	// draw cue
 	if (!m_ballsRolling) m_pCue->Draw();
+
+	// draw score
+	if (m_pScoreText->IsCreationOk())
+	{
+		m_pScoreText->Draw(Point2f{ 10.f, m_Viewport.height - 10.f - m_pScoreText->GetHeight() });
+	}
 }

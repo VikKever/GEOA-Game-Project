@@ -56,7 +56,7 @@ void Cue::Update(const Point2f& mousePosPt, bool isShooting)
 
 	const TwoBlade offsetLine{ (cueMiddlePos & m_pWhiteBall->GetFlatPos()) };
 
-	float moveDst{ 150.f };
+	float moveDst{ 75.f };
 	if (!m_isShooting)
 	{
 		// make sure the cue can't intersect with the ball
@@ -82,7 +82,7 @@ bool Cue::CheckHitBall()
 	const float dstToBall{ (m_cuePos & m_pWhiteBall->GetFlatPos()).Norm() };
 	if (dstToBall < Ball::SIZE / 2)
 	{
-		const float forceMultiplier{ 50.f };
+		const float forceMultiplier{ 30.f };
 
 		// get the line on which the cue is moving
 		const TwoBlade moveLine{ m_prevCuePos & m_cuePos };
