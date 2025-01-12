@@ -7,8 +7,6 @@
 
 class Ball;
 class BoundingBox;
-class Cue;
-class Hole;
 class Texture;
 
 class Game
@@ -74,27 +72,13 @@ private:
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
 
-	void SetupRedBalls();
-	void ResetWhiteBall();
-	void SetupHoles();
-	void CheckBallsRolling();
-	bool FallsInHole(const Ball& ball);
 	void UpdateScoreText();
 
 	static int m_points;
 	int m_pointsOnText;
 	std::unique_ptr<Texture> m_pScoreText;
 
-	const Rectf m_playArea;
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
-	std::vector<Hole> m_holes;
 
-	std::vector<Ball> m_redBalls;
-	std::unique_ptr<Ball> m_pWhiteBall;
-
-	std::unique_ptr<Cue> m_pCue;
-
-	bool m_ballsRolling;
-	bool m_isFirstShot;
-	bool m_hasHitBall;
+	std::vector<Ball> m_balls;
 };

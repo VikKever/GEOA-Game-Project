@@ -12,8 +12,6 @@
 #include "Ball.h"
 #include "BoundingBox.h"
 #include "GAUtils.h"
-#include "Cue.h"
-#include "Hole.h"
 
 #include "Texture.h"
 
@@ -26,28 +24,21 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
-	, m_ballsRolling{ false }
-	, m_playArea{ 50.f, 50.f, window.width - 100.f, window.height - 100.f}
-	, m_isFirstShot{ true }
 	, m_pointsOnText{ 0 }
-	, m_hasHitBall{ false }
 {
 	InitializeGameEngine();
 
-	//m_redBalls.reserve(m_numParticles);
+	m_balls.reserve(20);
 
-	//for (int idx{}; idx < m_numParticles; ++idx)
-	//{
-	//	ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 0.f, 1.f};
-	//	//TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0};
-	//	//Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
-	//	m_redBalls.emplace_back(Ball{ pos1, Motor{} });
-	//}
-	SetupRedBalls();
-	ResetWhiteBall();
-	SetupHoles();
+	for (int idx{}; idx < 20; ++idx)
+	{
+		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 0.f, 1.f};
+		TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0};
+		Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
+		m_balls.emplace_back(Ball{ pos1, velocity1 });
+	}
 
-	m_pBoundingBox = std::make_unique<BoundingBox>(m_playArea);
+	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
 
 	UpdateScoreText();
 }
@@ -229,89 +220,6 @@ void Game::CleanupGameEngine()
 
 }
 
-void Game::SetupRedBalls()
-{
-	const Point2f startPos{ m_Viewport.width / 3, m_Viewport.height / 2 };
-	const int numColumns{ 5 };
-
-	// Create red balls
-	// =========================
-	const float horizontalDst{ Ball::SIZE * std::cosf(M_PI / 6) + 0.1f};
-	const float verticalDst{ Ball::SIZE + 0.1f };
-
-	// pascals formula for the total amount of balls (= 1 + 2 + 3 + ... + numColumns)
-	m_redBalls.reserve((numColumns * (numColumns + 1)) / 2);
-
-	for (int column{}; column < numColumns; ++column)
-	{
-		for (int row{}; row < column + 1; ++row)
-		{
-			ThreeBlade pos{
-				startPos.x - (column * horizontalDst),
-				startPos.y + (row * verticalDst) - (column * Ball::SIZE / 2),
-				0.f, 1.f
-			};
-			m_redBalls.push_back(Ball{ pos, Motor{1, 0, 0, 0, 0, 0, 0, 0} });
-		}
-	}
-}
-
-void Game::ResetWhiteBall()
-{
-	m_pWhiteBall = std::make_unique<Ball>(ThreeBlade{ 2 * m_Viewport.width / 3, m_Viewport.height / 2, 0.f, 1.f }, Motor{ 1, 0, 0, 0, 0, 0, 0, 0 }/*Motor::Translation(500.f, TwoBlade{ -1, 0, 0, 0, 0, 0 })*/, true);
-	
-	// make sure the cue still points to the ball
-	m_pCue = std::make_unique<Cue>(m_pWhiteBall.get());
-}
-
-void Game::SetupHoles()
-{
-	m_holes.reserve(6);
-
-	// left holes
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + 12.f, m_playArea.bottom + 12.f, 0, 1 } });
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + 12.f, m_playArea.bottom + m_playArea.height - 12.f, 0, 1 } });
-
-	// middle holes
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width / 2, m_playArea.bottom + 10.f, 0, 1 } });
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width / 2, m_playArea.bottom + m_playArea.height - 10.f, 0, 1 } });
-
-	// right holes
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width - 12.f, m_playArea.bottom + 12.f, 0, 1 } });
-	m_holes.push_back(Hole{ ThreeBlade{ m_playArea.left + m_playArea.width - 12.f, m_playArea.bottom + m_playArea.height - 12.f, 0, 1 } });
-}
-
-void Game::CheckBallsRolling()
-{
-	m_ballsRolling = false;
-	for (const Ball& ball : m_redBalls)
-	{
-		m_ballsRolling |= ball.IsMoving();
-	}
-	m_ballsRolling |= m_pWhiteBall->IsMoving();
-
-	if (!m_ballsRolling)
-	{
-		// executed when balls stop rolling
-		m_isFirstShot = false;
-
-		// if no red balls have been hit, lose 20 points
-		if (!m_hasHitBall)
-		{
-			AddPoints(-10);
-		}
-	}
-}
-
-bool Game::FallsInHole(const Ball& ball)
-{
-	for (const Hole& hole : m_holes)
-	{
-		if (hole.FallsIn(ball)) return true;
-	}
-	return false;
-}
-
 void Game::UpdateScoreText()
 {
 	m_pScoreText = std::make_unique<Texture>(std::to_string(m_points), "THEBOLDFONT_FREEVERSION.ttf", 20, Color4f{ 1, 1, 1, 1 });
@@ -329,106 +237,49 @@ void Game::Update(float elapsedSec)
 		UpdateScoreText();
 	}
 
-	// update white ball
-	m_pWhiteBall->Update(elapsedSec, m_pBoundingBox.get(), m_isFirstShot);
+	if (m_balls.size() <= 0) return;
 
-	if (m_redBalls.size() <= 0) return;
-
-	// update red balls
-	for (Ball& particle : m_redBalls)
+	// update balls
+	for (Ball& particle : m_balls)
 	{
-		particle.Update(elapsedSec, m_pBoundingBox.get(), m_isFirstShot);
+		particle.Update(elapsedSec, m_pBoundingBox.get());
 	}
 
-	// handle collisions between red balls
+	// handle collisions between balls
 	// only loop over every particle interaction once
-	for (int idx1{}; idx1 < m_redBalls.size() - 1; ++idx1)
+	for (int idx1{}; idx1 < m_balls.size() - 1; ++idx1)
 	{
-		for (int idx2{ idx1 + 1 }; idx2 < m_redBalls.size(); ++idx2)
+		for (int idx2{ idx1 + 1 }; idx2 < m_balls.size(); ++idx2)
 		{
-			m_redBalls[idx1].CheckParticleCollision(m_redBalls[idx2], m_isFirstShot);
+			m_balls[idx1].CheckParticleCollision(m_balls[idx2]);
 		}
 	}
 
-	// handle collisions between the white ball and red balls
-	for (int idx{}; idx < m_redBalls.size(); ++idx)
-	{
-		if (m_pWhiteBall->CheckParticleCollision(m_redBalls[idx], m_isFirstShot))
-		{
-			// if there was a collision between the white ball and a red ball, the player doesn't lose points for this
-			m_hasHitBall = true;
-		}
-	}
-
-	// move all red balls that fell into a hole to the back of the list
-	auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(),
-		[&](const Ball& ball) { return FallsInHole(ball); }) };
-	// count the points of all removed balls
-	for (auto it{ removeIt }; it != m_redBalls.end(); ++it)
-	{
-		AddPoints(it->GetPoints());
-	}
-	// remove the balls that fell into a hole
-	if (removeIt != m_redBalls.end())
-	{
-		m_redBalls.erase(removeIt);
-	}
-
-	// if the white ball fals into a hole, it gets reset back to its starting position
-	if (FallsInHole(*m_pWhiteBall.get()))
-	{
-		ResetWhiteBall();
-		AddPoints(-5);
-	}
-
-	if (m_ballsRolling)
-	{
-		// check if there are no longer balls rolling and the cue can appear again
-		CheckBallsRolling();
-	}
-	else
-	{
-		// update cue
-		int x, y;
-		Uint32 mouseState = SDL_GetMouseState(&x, &y);
-		bool isShooting{ (mouseState & SDL_BUTTON(1)) != 0 };
-		m_pCue->Update(Point2f{ float(x), float(m_Viewport.height - y) }, isShooting);
-		if (isShooting)
-		{
-			if (m_pCue->CheckHitBall())
-			{
-				// executed on hitting ball
-				m_ballsRolling = true;
-				m_hasHitBall = false;
-			}
-		}
-	}
+	//// move all red balls that fell into a hole to the back of the list
+	//auto removeIt{ std::remove_if(m_balls.begin(), m_balls.end(),
+	//	[&](const Ball& ball) { return FallsInHole(ball); }) };
+	//// count the points of all removed balls
+	//for (auto it{ removeIt }; it != m_balls.end(); ++it)
+	//{
+	//	AddPoints(it->GetPoints());
+	//}
+	//// remove the balls that fell into a hole
+	//if (removeIt != m_balls.end())
+	//{
+	//	m_balls.erase(removeIt);
+	//}
 }
 
 void Game::Draw() const
 {
-	glClearColor(0.15f, 0.3f, 0.15f, 1.0f);
+	glClearColor(0.f, 0.f, 0.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// draw game area
-	utils::SetColor(Color4f{ 0.05f, 0.2f, 0.05f, 1.f });
-	utils::FillRect(m_playArea);
-
-	// draw holes
-	for (const Hole& hole : m_holes)
-	{
-		hole.Draw();
-	}
-
 	// draw balls
-	for (const Ball& particle : m_redBalls)
+	for (const Ball& particle : m_balls)
 	{
 		particle.Draw();
 	}
-	m_pWhiteBall->Draw();
-
-	// draw cue
-	if (!m_ballsRolling) m_pCue->Draw();
 
 	// draw score
 	if (m_pScoreText->IsCreationOk())

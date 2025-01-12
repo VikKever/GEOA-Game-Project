@@ -5,8 +5,8 @@
 #include "GAUtils.h"
 #include <algorithm>
 
-Ball::Ball(const ThreeBlade& pos, const Motor& velocity, bool isWhite)
-	:m_pos{ pos }, m_velocity{ velocity }, m_isWhiteBall{ isWhite }
+Ball::Ball(const ThreeBlade& pos, const Motor& velocity)
+	:m_pos{ pos }, m_velocity{ velocity }
 {
 	m_pos[2] = float(TOT_LIVES);
 	//m_pos[2] = 1.f;
@@ -16,22 +16,15 @@ void Ball::Draw() const
 {
 	const Ellipsef shape{ m_pos[0] / m_pos[3], m_pos[1] / m_pos[3], SIZE / 2, SIZE / 2};
 
-	if (m_isWhiteBall)
-	{
-		utils::SetColor(Color4f{ 1.f, 1.f, 1.f, 1.f });
-	}
-	else
-	{
-		const float healthValue{ m_pos[2] / m_pos[3] / TOT_LIVES };
-		utils::SetColor(Color4f{ healthValue * 0.6f + 0.4f, (1.f - healthValue) * 0.4f, (1.f - healthValue) * 0.2f, 1.f });
-	}
+	const float healthValue{ m_pos[2] / m_pos[3] / TOT_LIVES };
+	utils::SetColor(Color4f{ healthValue * 0.6f + 0.4f, (1.f - healthValue) * 0.4f, (1.f - healthValue) * 0.2f, 1.f });
 	utils::FillEllipse(shape);
 
 	utils::SetColor(Color4f{ 1.f, 1.f, 1.f, 1.f });
 	//utils::DrawEllipse(shape);
 }
 
-void Ball::Update(float elapsedSec, const BoundingBox* boundingBox, bool isFirstShot)
+void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
 {
 	Move(elapsedSec);
 	CheckBoundingBoxCollision(boundingBox);
@@ -46,7 +39,7 @@ void Ball::Update(float elapsedSec, const BoundingBox* boundingBox, bool isFirst
 	m_pos[2] = std::clamp(m_pos[2], 1.f, FLT_MAX);
 }
 
-bool Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
+bool Ball::CheckParticleCollision(Ball& other)
 {
 	// ignore the z-axis:
 	const ThreeBlade thisPos2D{ m_pos[0], m_pos[1], 0, 1 };
@@ -105,19 +98,8 @@ bool Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
 
 		// Remove 1 live for collisions with a red ball, and 3 for collisions with the white ball
 		// ============================
-		if (!isFirstShot)
-		{
-			if (m_isWhiteBall) other.m_pos[2] -= 3.f;
-			else
-			{
-				if (other.m_isWhiteBall) m_pos[2] -= 3.f;
-				else
-				{
-					m_pos[2] -= 1.f;
-					other.m_pos[2] -= 1.f;
-				}
-			}
-		}
+		m_pos[2] -= 1.f;
+		other.m_pos[2] -= 1.f;
 
 		return true;
 	}
@@ -127,11 +109,6 @@ bool Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
 void Ball::ApplyForce(const Motor& translationMotor)
 {
 	m_velocity = translationMotor * m_velocity;
-}
-
-bool Ball::IsMoving() const
-{
-	return m_velocity.VNorm() > MIN_SPEED;
 }
 
 ThreeBlade Ball::GetFlatPos() const
@@ -155,12 +132,7 @@ void Ball::Move(float elapsedSec)
 	m_pos = (totMotor * m_pos * ~totMotor).Grade3();
 
 	// Add friction by multiplying by elapsedSec and resetting the norm
-	m_velocity = GAUtils::Scale(m_velocity, std::powf(FRICTION, elapsedSec));
-
-	if (m_velocity.VNorm() < MIN_SPEED)
-	{
-		m_velocity = Motor{ 1, 0, 0, 0, 0, 0, 0, 0 };
-	}
+	//m_velocity = GAUtils::Scale(m_velocity, std::powf(FRICTION, elapsedSec));
 }
 
 void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox, bool isFirstShot)
@@ -180,6 +152,6 @@ void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox, bool isFirs
 		m_velocity = transformedVelocity.ToMotor();
 
 		// Remove a life when bouncing against a wall
-		if (!m_isWhiteBall && !isFirstShot) m_pos[2] -= 1.f;
+		m_pos[2] -= 1.f;
 	}
 }
