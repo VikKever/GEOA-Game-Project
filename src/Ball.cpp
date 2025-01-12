@@ -9,6 +9,7 @@ Ball::Ball(const ThreeBlade& pos, const Motor& velocity, bool isWhite)
 	:m_pos{ pos }, m_velocity{ velocity }, m_isWhiteBall{ isWhite }
 {
 	m_pos[2] = float(TOT_LIVES);
+	//m_pos[2] = 1.f;
 }
 
 void Ball::Draw() const
@@ -22,7 +23,7 @@ void Ball::Draw() const
 	else
 	{
 		const float healthValue{ m_pos[2] / m_pos[3] / TOT_LIVES };
-		utils::SetColor(Color4f{ healthValue * 0.5f + 0.5f, (1.f - healthValue) * 0.3f, (1.f - healthValue) * 0.2f, 1.f });
+		utils::SetColor(Color4f{ healthValue * 0.6f + 0.4f, (1.f - healthValue) * 0.4f, (1.f - healthValue) * 0.2f, 1.f });
 	}
 	utils::FillEllipse(shape);
 
@@ -41,9 +42,11 @@ void Ball::Update(float elapsedSec, const BoundingBox* boundingBox, bool isFirst
 	m_velocity[0] = 1.f;
 
 	m_pos.Normalize();
+
+	m_pos[2] = std::clamp(m_pos[2], 1.f, FLT_MAX);
 }
 
-void Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
+bool Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
 {
 	// ignore the z-axis:
 	const ThreeBlade thisPos2D{ m_pos[0], m_pos[1], 0, 1 };
@@ -115,7 +118,10 @@ void Ball::CheckParticleCollision(Ball& other, bool isFirstShot)
 				}
 			}
 		}
+
+		return true;
 	}
+	return false;
 }
 
 void Ball::ApplyForce(const Motor& translationMotor)
@@ -128,14 +134,14 @@ bool Ball::IsMoving() const
 	return m_velocity.VNorm() > MIN_SPEED;
 }
 
-ThreeBlade Ball::GetPos() const
-{
-	return m_pos;
-}
-
 ThreeBlade Ball::GetFlatPos() const
 {
-	return ThreeBlade{ m_pos[0], m_pos[1], 0, 1 };;
+	return ThreeBlade{ m_pos[0], m_pos[1], 0, 1 };
+}
+
+int Ball::GetPoints() const
+{
+	return int(m_pos[2]);
 }
 
 void Ball::Move(float elapsedSec)

@@ -96,4 +96,5 @@ private:
 
 	bool m_ballsRolling;
 	bool m_isFirstShot;
+	bool m_hasHitBall;
 };

@@ -12,12 +12,13 @@ public:
 
 	void Draw() const;
 	void Update(float elapsedSec, const BoundingBox* boundingBox, bool isFirstShot = false);
-	void CheckParticleCollision(Ball& other, bool isFirstShot = false);
+	bool CheckParticleCollision(Ball& other, bool isFirstShot = false);
 
 	void ApplyForce(const Motor& translationMotor);
 	bool IsMoving() const;
-	ThreeBlade GetPos() const;
+	//ThreeBlade GetPos() const;
 	ThreeBlade GetFlatPos() const;
+	int GetPoints() const;
 
 	static constexpr float SIZE{ 30.f };
 

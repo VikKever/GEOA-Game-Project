@@ -30,6 +30,7 @@ Game::Game(const Window& window)
 	, m_playArea{ 50.f, 50.f, window.width - 100.f, window.height - 100.f}
 	, m_isFirstShot{ true }
 	, m_pointsOnText{ 0 }
+	, m_hasHitBall{ false }
 {
 	InitializeGameEngine();
 
@@ -291,7 +292,14 @@ void Game::CheckBallsRolling()
 
 	if (!m_ballsRolling)
 	{
+		// executed when balls stop rolling
 		m_isFirstShot = false;
+
+		// if no red balls have been hit, lose 20 points
+		if (!m_hasHitBall)
+		{
+			AddPoints(-10);
+		}
 	}
 }
 
@@ -345,12 +353,22 @@ void Game::Update(float elapsedSec)
 	// handle collisions between the white ball and red balls
 	for (int idx{}; idx < m_redBalls.size(); ++idx)
 	{
-		m_pWhiteBall->CheckParticleCollision(m_redBalls[idx], m_isFirstShot);
+		if (m_pWhiteBall->CheckParticleCollision(m_redBalls[idx], m_isFirstShot))
+		{
+			// if there was a collision between the white ball and a red ball, the player doesn't lose points for this
+			m_hasHitBall = true;
+		}
 	}
 
-	// remove the red balls that fell into a hole
+	// move all red balls that fell into a hole to the back of the list
 	auto removeIt{ std::remove_if(m_redBalls.begin(), m_redBalls.end(),
 		[&](const Ball& ball) { return FallsInHole(ball); }) };
+	// count the points of all removed balls
+	for (auto it{ removeIt }; it != m_redBalls.end(); ++it)
+	{
+		AddPoints(it->GetPoints());
+	}
+	// remove the balls that fell into a hole
 	if (removeIt != m_redBalls.end())
 	{
 		m_redBalls.erase(removeIt);
@@ -360,7 +378,7 @@ void Game::Update(float elapsedSec)
 	if (FallsInHole(*m_pWhiteBall.get()))
 	{
 		ResetWhiteBall();
-		AddPoints(-10);
+		AddPoints(-5);
 	}
 
 	if (m_ballsRolling)
@@ -377,7 +395,12 @@ void Game::Update(float elapsedSec)
 		m_pCue->Update(Point2f{ float(x), float(m_Viewport.height - y) }, isShooting);
 		if (isShooting)
 		{
-			m_ballsRolling = m_pCue->CheckHitBall();
+			if (m_pCue->CheckHitBall())
+			{
+				// executed on hitting ball
+				m_ballsRolling = true;
+				m_hasHitBall = false;
+			}
 		}
 	}
 }

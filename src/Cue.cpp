@@ -3,6 +3,8 @@
 #include "Ball.h"
 #include "utils.h"
 #include "GAUtils.h"
+#include <algorithm>
+#include <iostream>
 
 Cue::Cue(Ball* pWhiteBall)
 	:m_pWhiteBall{ pWhiteBall }
@@ -67,6 +69,7 @@ void Cue::Update(const Point2f& mousePosPt, bool isShooting)
 			m_shootOffset = moveDst - dstToBall + minDst;
 			moveDst = dstToBall - minDst;
 		}
+		else m_shootOffset = 0;
 	}
 	else
 	{
@@ -79,19 +82,34 @@ void Cue::Update(const Point2f& mousePosPt, bool isShooting)
 bool Cue::CheckHitBall()
 {
 	// check if the cue intersects the ball
-	const float dstToBall{ (m_cuePos & m_pWhiteBall->GetFlatPos()).Norm() };
-	if (dstToBall < Ball::SIZE / 2)
+	const TwoBlade lineToBall{ (m_cuePos & m_pWhiteBall->GetFlatPos()) };
+	const TwoBlade prevLineToBall{ (m_prevCuePos & m_pWhiteBall->GetFlatPos()) };
+	const bool cueIntersectsBall{ lineToBall.Norm() < Ball::SIZE / 2 };
+
+	// check if current line to ball and previous line to ball go in opposite directions, then the cue also hit the ball
+	// (prevents a bug where the cue would move through the ball instead of hitting it)
+	const bool movedThroughBall{ (lineToBall | prevLineToBall) > 0.f };
+	if (cueIntersectsBall || movedThroughBall)
 	{
-		const float forceMultiplier{ 30.f };
+		const float forceMultiplier{ 20.f };
+		const float maxForce{ 1500.f };
 
 		// get the line on which the cue is moving
 		const TwoBlade moveLine{ m_prevCuePos & m_cuePos };
 		// get a plane perpendicular to the line through the point, counting as a translation vector
 		const OneBlade moveVector{ moveLine | m_pWhiteBall->GetFlatPos() };
 		// get the final translation with this vector oneblade
-		const Motor translation{ GAUtils::TranslationFromOneBlade(moveVector) };
+		Motor translation{ GAUtils::TranslationFromOneBlade(moveVector) * forceMultiplier };
 
-		m_pWhiteBall->ApplyForce(translation * forceMultiplier);
+		// clamp the force to maxForce
+		const float force{ translation.VNorm() };
+		if (force > maxForce)
+		{
+			std::cout << force << std::endl;
+			translation *= (maxForce / force);
+		}
+
+		m_pWhiteBall->ApplyForce(translation);
 
 		return true;
 	}
