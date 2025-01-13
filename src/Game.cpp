@@ -12,6 +12,7 @@
 #include "Ball.h"
 #include "BoundingBox.h"
 #include "GAUtils.h"
+#include "Player.h"
 
 #include "Texture.h"
 
@@ -28,17 +29,23 @@ Game::Game(const Window& window)
 {
 	InitializeGameEngine();
 
-	m_balls.reserve(20);
+	m_pBalls.reserve(10);
 
-	for (int idx{}; idx < 20; ++idx)
+	for (int idx{}; idx < 10; ++idx)
 	{
-		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 0.f, 1.f};
+		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 1.f, 1.f};
 		TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0};
-		Motor velocity1{ Motor::Translation(rand() % 100 + 100, moveDirection1)};
-		m_balls.emplace_back(Ball{ pos1, velocity1 });
+		Motor velocity1{ Motor::Translation(float(rand() % 100), moveDirection1)};
+		m_pBalls.emplace_back(std::make_unique<Ball>(pos1, velocity1, false));
 	}
 
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
+
+	m_pPlayer = std::make_unique<Player>(
+		ThreeBlade{ m_Viewport.width / 3, m_Viewport.height / 2, 1.f, 1 },
+		Motor{ 1, 0, 0, 0, 0, 0, 0, 0 },
+		ThreeBlade{ m_Viewport.width / 2, m_Viewport.height / 2, 0, 1 }
+	);
 
 	UpdateScoreText();
 }
@@ -237,37 +244,50 @@ void Game::Update(float elapsedSec)
 		UpdateScoreText();
 	}
 
-	if (m_balls.size() <= 0) return;
+	if (m_pBalls.size() <= 0) return;
 
 	// update balls
-	for (Ball& particle : m_balls)
+	for (const std::unique_ptr<Ball>& particle : m_pBalls)
 	{
-		particle.Update(elapsedSec, m_pBoundingBox.get());
+		particle->Update(elapsedSec, m_pBoundingBox.get());
 	}
+
+	// update the player
+	m_pPlayer->Update(elapsedSec, m_pBoundingBox.get());
 
 	// handle collisions between balls
 	// only loop over every particle interaction once
-	for (int idx1{}; idx1 < m_balls.size() - 1; ++idx1)
+	for (int idx1{}; idx1 < m_pBalls.size() - 1; ++idx1)
 	{
-		for (int idx2{ idx1 + 1 }; idx2 < m_balls.size(); ++idx2)
+		for (int idx2{ idx1 + 1 }; idx2 < m_pBalls.size(); ++idx2)
 		{
-			m_balls[idx1].CheckParticleCollision(m_balls[idx2]);
+			m_pBalls[idx1]->CheckCollision(*m_pBalls[idx2]);
 		}
 	}
 
-	//// move all red balls that fell into a hole to the back of the list
-	//auto removeIt{ std::remove_if(m_balls.begin(), m_balls.end(),
-	//	[&](const Ball& ball) { return FallsInHole(ball); }) };
-	//// count the points of all removed balls
-	//for (auto it{ removeIt }; it != m_balls.end(); ++it)
+	//// handle collisions between the player and the balls
+	//for (Ball& ball : m_pBalls)
 	//{
-	//	AddPoints(it->GetPoints());
+	//	//m_pPlayer->CheckCollisionWithBall(ball);
 	//}
-	//// remove the balls that fell into a hole
-	//if (removeIt != m_balls.end())
-	//{
-	//	m_balls.erase(removeIt);
-	//}
+
+	// move all dead balls to the back of the list
+	auto removeIt{ std::remove_if(m_pBalls.begin(), m_pBalls.end(),
+		[&](const std::unique_ptr<Ball>& pBall) { return pBall->IsDead(); }) };
+
+	// count the points of all (non-projectile) removed balls
+	for (auto it{ removeIt }; it != m_pBalls.end(); ++it)
+	{
+		if (!(*it)->IsProjectile())
+		{
+			AddPoints(10);
+		}
+	}
+	// actually remove the balls
+	if (removeIt != m_pBalls.end())
+	{
+		m_pBalls.erase(removeIt);
+	}
 }
 
 void Game::Draw() const
@@ -275,15 +295,34 @@ void Game::Draw() const
 	glClearColor(0.f, 0.f, 0.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// draw balls
-	for (const Ball& particle : m_balls)
+	// draw red balls
+	for (const std::unique_ptr<Ball>& pBall : m_pBalls)
 	{
-		particle.Draw();
+		pBall->Draw();
 	}
+
+	// draw player
+	m_pPlayer->Draw();
 
 	// draw score
 	if (m_pScoreText->IsCreationOk())
 	{
 		m_pScoreText->Draw(Point2f{ 10.f, m_Viewport.height - 10.f - m_pScoreText->GetHeight() });
+	}
+}
+
+void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
+{
+}
+
+void Game::ProcessKeyUpEvent(const SDL_KeyboardEvent& e)
+{
+	if (e.keysym.sym == SDLK_w)
+	{
+		m_pPlayer->ReflectAroundPillar();
+	}
+	else if (e.keysym.sym == SDLK_SPACE)
+	{
+		m_pBalls.push_back(m_pPlayer->ShootBall());
 	}
 }

@@ -33,3 +33,17 @@ bool BoundingBox::Collides(const ThreeBlade& point, OneBlade& collision, float o
 	}
 	return false;
 }
+
+bool BoundingBox::PlaceBackInsideBox(ThreeBlade& point, float offset, OneBlade& collisionPlane) const
+{
+	if (Collides(point, collisionPlane, offset))
+	{
+		// project the position onto the plane
+		ThreeBlade projectedPos{ GAUtils::Project(point, collisionPlane) };
+		// offset the ball with its radius
+		Motor offsetTranslation{ GAUtils::TranslationFromOneBlade(-offset * collisionPlane) };
+		point =  (offsetTranslation * projectedPos * ~offsetTranslation).Grade3();
+		return true;
+	}
+	return false;
+}

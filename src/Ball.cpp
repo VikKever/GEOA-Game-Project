@@ -5,23 +5,28 @@
 #include "GAUtils.h"
 #include <algorithm>
 
-Ball::Ball(const ThreeBlade& pos, const Motor& velocity)
-	:m_pos{ pos }, m_velocity{ velocity }
+Ball::Ball(const ThreeBlade& pos, const Motor& velocity, bool isProjectile)
+	:m_pos{ pos }, m_velocity{ velocity }, m_isProjectile{ isProjectile }, m_isDead{ false }
 {
-	m_pos[2] = float(TOT_LIVES);
-	//m_pos[2] = 1.f;
 }
 
 void Ball::Draw() const
 {
 	const Ellipsef shape{ m_pos[0] / m_pos[3], m_pos[1] / m_pos[3], SIZE / 2, SIZE / 2};
 
-	const float healthValue{ m_pos[2] / m_pos[3] / TOT_LIVES };
-	utils::SetColor(Color4f{ healthValue * 0.6f + 0.4f, (1.f - healthValue) * 0.4f, (1.f - healthValue) * 0.2f, 1.f });
+	const float healthValue{ m_pos[2] / m_pos[3] };
+	if (m_isProjectile)
+	{
+		utils::SetColor(Color4f{ 0.f, healthValue, 0.f, 1.f });
+	}
+	else
+	{
+		utils::SetColor(Color4f{ healthValue, 0.f, 0.f, 1.f });
+	}
 	utils::FillEllipse(shape);
 
 	utils::SetColor(Color4f{ 1.f, 1.f, 1.f, 1.f });
-	//utils::DrawEllipse(shape);
+	utils::DrawEllipse(shape);
 }
 
 void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
@@ -36,10 +41,10 @@ void Ball::Update(float elapsedSec, const BoundingBox* boundingBox)
 
 	m_pos.Normalize();
 
-	m_pos[2] = std::clamp(m_pos[2], 1.f, FLT_MAX);
+	m_pos[2] = std::clamp(m_pos[2], 0.f, 1.f);
 }
 
-bool Ball::CheckParticleCollision(Ball& other)
+bool Ball::CheckCollision(Ball& other, bool changeOwnVelocity)
 {
 	// ignore the z-axis:
 	const ThreeBlade thisPos2D{ m_pos[0], m_pos[1], 0, 1 };
@@ -66,7 +71,7 @@ bool Ball::CheckParticleCollision(Ball& other)
 
 		// Add the inverted force of the other ball and the force of this ball to the current velocity
 		other.m_velocity = projectedVelocity * GAUtils::Scale(projectedOtherVelocity, -1.f) * other.m_velocity;
-		m_velocity = projectedOtherVelocity * GAUtils::Scale(projectedVelocity, -1.f) * m_velocity;
+		if (changeOwnVelocity) m_velocity = projectedOtherVelocity * GAUtils::Scale(projectedVelocity, -1.f) * m_velocity;
 
 		// Place the particles outside of eachother again
 		// ==========================================
@@ -96,19 +101,20 @@ bool Ball::CheckParticleCollision(Ball& other)
 		//	std::cout << "Energy difference! (" << energyDifference << " units)\n";
 		//}
 
-		// Remove 1 live for collisions with a red ball, and 3 for collisions with the white ball
-		// ============================
-		m_pos[2] -= 1.f;
-		other.m_pos[2] -= 1.f;
+		// If one of the two balls is a projectile, kill it
+		if (m_isProjectile) Kill();
+		if (other.m_isProjectile) other.Kill();
 
 		return true;
 	}
 	return false;
 }
 
-void Ball::ApplyForce(const Motor& translationMotor)
+void Ball::SetFlatVelocity(const Motor& translationMotor)
 {
-	m_velocity = translationMotor * m_velocity;
+	float energyVelocity{ m_velocity[3] };
+	m_velocity = translationMotor;
+	m_velocity[3] = energyVelocity;
 }
 
 ThreeBlade Ball::GetFlatPos() const
@@ -116,9 +122,14 @@ ThreeBlade Ball::GetFlatPos() const
 	return ThreeBlade{ m_pos[0], m_pos[1], 0, 1 };
 }
 
-int Ball::GetPoints() const
+float Ball::GetEnergy() const
 {
-	return int(m_pos[2]);
+	return m_pos[2];
+}
+
+void Ball::AddEnergy(float amount)
+{
+	m_pos[2] += amount;
 }
 
 void Ball::Move(float elapsedSec)
@@ -138,20 +149,11 @@ void Ball::Move(float elapsedSec)
 void Ball::CheckBoundingBoxCollision(const BoundingBox* boundingBox, bool isFirstShot)
 {
 	OneBlade collisionPlane;
-	// check whether the ball collides and save the plane it hit when it did
-	if (boundingBox->Collides(m_pos, collisionPlane, SIZE / 2))
+	// check whether the ball collides and move the position to be inside the box
+	if (boundingBox->PlaceBackInsideBox(m_pos, SIZE / 2, collisionPlane))
 	{
-		// project the position onto the plane
-		m_pos = GAUtils::Project(m_pos, collisionPlane);
-		// offset the ball with its radius
-		Motor offset{ GAUtils::TranslationFromOneBlade(-(SIZE / 2) * collisionPlane) };
-		m_pos = (offset * m_pos * ~offset).Grade3();
-
 		// miror the velocity
 		MultiVector transformedVelocity{ collisionPlane * m_velocity * ~collisionPlane };
 		m_velocity = transformedVelocity.ToMotor();
-
-		// Remove a life when bouncing against a wall
-		m_pos[2] -= 1.f;
 	}
 }

@@ -8,6 +8,7 @@
 class Ball;
 class BoundingBox;
 class Texture;
+class Player;
 
 class Game
 {
@@ -27,14 +28,10 @@ public:
 	void Draw() const;
 
 	// Event handling
-	void ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
-	{
+	void ProcessKeyDownEvent(const SDL_KeyboardEvent& e);
 
-	}
-	void ProcessKeyUpEvent(const SDL_KeyboardEvent& e)
-	{
+	void ProcessKeyUpEvent(const SDL_KeyboardEvent& e);
 
-	}
 	void ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
 	{
 		
@@ -80,5 +77,7 @@ private:
 
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
 
-	std::vector<Ball> m_balls;
+	std::vector<std::unique_ptr<Ball>> m_pBalls;
+
+	std::unique_ptr<Player> m_pPlayer;
 };

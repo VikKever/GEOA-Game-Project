@@ -46,4 +46,10 @@ namespace GAUtils
 
 		return oneMotor - 0.5f * translation * (-e0);
 	}
+
+	inline Motor RotateAroundLine(float angle, const TwoBlade& line)
+	{
+		const TwoBlade linePart{ -(std::sinf(angle * DEG_TO_RAD / 2) * line) };
+		return Motor{ std::cosf(angle * DEG_TO_RAD / 2), linePart[0], linePart[1], linePart[2], linePart[3], linePart[4], linePart[5], 0 };
+	}
 }
