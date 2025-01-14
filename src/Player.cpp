@@ -5,10 +5,12 @@
 #include "GAUtils.h"
 #include <iostream>
 #include "SDL_keyboard.h"
+#include "Game.h"
 
 Player::Player(const ThreeBlade& pos, const Motor& velocity, const ThreeBlade& pivotPos)
 	: m_pivotPos{ pivotPos }
 	, m_pos{ pos }
+	, m_damageCountdown{ -1.f }
 {
 }
 
@@ -36,7 +38,7 @@ void Player::Update(float elapsedSec, const BoundingBox* pBoundingBox)
 		{
 			// rotate the ball by creating a force perpendicular to the line from the ball to the pivot
 			// =================================
-			const float rotationForce{ 125.f };
+			const float rotationForce{ 200.f };
 
 			// get pos without the z-axis
 			const ThreeBlade flatPos{ m_pos[0], m_pos[1], 0, 1 };
@@ -61,25 +63,25 @@ void Player::Update(float elapsedSec, const BoundingBox* pBoundingBox)
 
 	// PIVOT MOVEMENT
 	// =============
-	const float movementSpeed{ 100.f };
+	const float pivotSpeed{ 200.f };
 
 	Motor movement{ 1, 0, 0, 0, 0, 0, 0, 0 };
 
 	if (pKeyState[SDL_SCANCODE_LEFT])
 	{
-		movement = movement * Motor::Translation(movementSpeed * elapsedSec, TwoBlade{ -1.f, 0, 0, 0, 0, 0 });
+		movement = movement * Motor::Translation(pivotSpeed * elapsedSec, TwoBlade{ -1.f, 0, 0, 0, 0, 0 });
 	}
 	if (pKeyState[SDL_SCANCODE_RIGHT])
 	{
-		movement = movement * Motor::Translation(movementSpeed * elapsedSec, TwoBlade{ 1.f, 0, 0, 0, 0, 0 });
+		movement = movement * Motor::Translation(pivotSpeed * elapsedSec, TwoBlade{ 1.f, 0, 0, 0, 0, 0 });
 	}
 	if (pKeyState[SDL_SCANCODE_DOWN])
 	{
-		movement = movement * Motor::Translation(movementSpeed * elapsedSec, TwoBlade{ 0, -1.f, 0, 0, 0, 0 });
+		movement = movement * Motor::Translation(pivotSpeed * elapsedSec, TwoBlade{ 0, -1.f, 0, 0, 0, 0 });
 	}
 	if (pKeyState[SDL_SCANCODE_UP])
 	{
-		movement = movement * Motor::Translation(movementSpeed * elapsedSec, TwoBlade{ 0, 1.f, 0, 0, 0, 0 });
+		movement = movement * Motor::Translation(pivotSpeed * elapsedSec, TwoBlade{ 0, 1.f, 0, 0, 0, 0 });
 	}
 	m_pivotPos = (movement * m_pivotPos * ~movement).Grade3();
 
@@ -88,11 +90,17 @@ void Player::Update(float elapsedSec, const BoundingBox* pBoundingBox)
 	OneBlade collisionPlane{};
 	pBoundingBox->PlaceBackInsideBox(m_pos, SIZE / 2, collisionPlane);
 
+	// LOSE ENERGY
+	// ================
 	if (!lostEnergy)
 	{
 		const float energyGain{ 0.4f };
 		m_pos[2] += energyGain * elapsedSec;
 	}
+
+	// DECREMENT DAMAGE COUNTDOWN
+	// ====================
+	m_damageCountdown -= elapsedSec;
 }
 
 void Player::Draw() const
@@ -100,11 +108,21 @@ void Player::Draw() const
 	// draw player
 	// ==========
 	const Rectf shape{ m_pos[0] / m_pos[3] - SIZE / 2, m_pos[1] / m_pos[3] - SIZE / 2, SIZE, SIZE};
+
 	// draw fill
 	utils::SetColor(Color4f{ 0.f, 0.f, m_pos[2], 1.f}); // color depends on the energy
 	utils::FillRect(shape);
+
 	// draw outline
-	utils::SetColor(Color4f{ 1, 1, 1, 1 });
+	if (m_damageCountdown <= 0.f)
+	{
+		utils::SetColor(Color4f{ 1, 1, 1, 1 });
+	}
+	else
+	{
+		// set color to red if damaged
+		utils::SetColor(Color4f{ 1, 0, 0, 1 });
+	}
 	utils::DrawRect(shape);
 
 	// draw pivot
@@ -122,6 +140,21 @@ void Player::ReflectAroundPillar()
 		m_pos = (m_pivotPos * m_pos * ~m_pivotPos).Grade3();
 		m_pos[2] = 0.f; // reflecting sets the energy back to 0
 	}
+}
+
+bool Player::CheckHitsPlayer(const Ball& ball)
+{
+	if (m_damageCountdown > 0.f || ball.IsProjectile()) return false;
+
+	const ThreeBlade flatPos{ m_pos[0], m_pos[1], 0, 1 };
+	if ((ball.GetFlatPos() & flatPos).Norm() < (Ball::SIZE / 2 + SIZE / 2))
+	{
+		Game::AddLives(-1);
+		m_damageCountdown = 2.f; // the player can't be hurt for 2 seconds
+		m_pos[2] = 0.f; // remove energy
+		return true;
+	}
+	return false;
 }
 
 std::unique_ptr<Ball> Player::ShootBall() const

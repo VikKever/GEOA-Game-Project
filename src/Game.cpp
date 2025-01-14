@@ -13,10 +13,11 @@
 #include "BoundingBox.h"
 #include "GAUtils.h"
 #include "Player.h"
+#include "Hole.h"
 
 #include "Texture.h"
 
-int Game::m_points{ 0 };
+int Game::m_lives{ 20 };
 
 Game::Game(const Window& window)
 	: m_Window{ window }
@@ -25,11 +26,12 @@ Game::Game(const Window& window)
 	, m_pContext{ nullptr }
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
-	, m_pointsOnText{ 0 }
+	, m_livesOnText{ 0 }
 {
 	InitializeGameEngine();
 
-	m_pBalls.reserve(10);
+	// create the balls
+	m_pBalls.reserve(15);
 
 	for (int idx{}; idx < 10; ++idx)
 	{
@@ -39,15 +41,24 @@ Game::Game(const Window& window)
 		m_pBalls.emplace_back(std::make_unique<Ball>(pos1, velocity1, false));
 	}
 
+	// create boundingbox
 	m_pBoundingBox = std::make_unique<BoundingBox>(m_Viewport);
 
+	// create player
 	m_pPlayer = std::make_unique<Player>(
 		ThreeBlade{ m_Viewport.width / 3, m_Viewport.height / 2, 1.f, 1 },
 		Motor{ 1, 0, 0, 0, 0, 0, 0, 0 },
 		ThreeBlade{ m_Viewport.width / 2, m_Viewport.height / 2, 0, 1 }
 	);
 
-	UpdateScoreText();
+	// create holes
+	m_pHoles.reserve(4);
+	m_pHoles.emplace_back(std::make_unique<Hole>(ThreeBlade{ 0.f, 0.f, 0.f }));
+	m_pHoles.emplace_back(std::make_unique<Hole>(ThreeBlade{ m_Viewport.width, 0.f, 0.f }));
+	m_pHoles.emplace_back(std::make_unique<Hole>(ThreeBlade{ 0.f, m_Viewport.height, 0.f }));
+	m_pHoles.emplace_back(std::make_unique<Hole>(ThreeBlade{ m_Viewport.width, m_Viewport.height, 0.f }));
+
+	UpdateLivesText();
 }
 
 Game::~Game()
@@ -55,9 +66,9 @@ Game::~Game()
 	CleanupGameEngine();
 }
 
-void Game::AddPoints(int amount)
+void Game::AddLives(int amount)
 {
-	m_points += amount;
+	m_lives += amount;
 }
 
 void Game::InitializeGameEngine()
@@ -227,62 +238,64 @@ void Game::CleanupGameEngine()
 
 }
 
-void Game::UpdateScoreText()
+void Game::UpdateLivesText()
 {
-	m_pScoreText = std::make_unique<Texture>(std::to_string(m_points), "THEBOLDFONT_FREEVERSION.ttf", 20, Color4f{ 1, 1, 1, 1 });
-	if (!m_pScoreText->IsCreationOk())
+	m_pLivesText = std::make_unique<Texture>(std::to_string(m_lives), "THEBOLDFONT_FREEVERSION.ttf", 20, Color4f{ 1, 1, 1, 1 });
+	if (!m_pLivesText->IsCreationOk())
 	{
 		std::cout << "ERROR loading score text\n";
 	}
-	m_pointsOnText = m_points;
+	m_livesOnText = m_lives;
 }
 
 void Game::Update(float elapsedSec)
 {
-	if (m_pointsOnText != m_points)
+	if (m_livesOnText != m_lives)
 	{
-		UpdateScoreText();
+		UpdateLivesText();
 	}
 
-	if (m_pBalls.size() <= 0) return;
-
 	// update balls
-	for (const std::unique_ptr<Ball>& particle : m_pBalls)
+	for (const std::unique_ptr<Ball>& pBall : m_pBalls)
 	{
-		particle->Update(elapsedSec, m_pBoundingBox.get());
+		pBall->Update(elapsedSec, m_pBoundingBox.get());
 	}
 
 	// update the player
 	m_pPlayer->Update(elapsedSec, m_pBoundingBox.get());
 
-	// handle collisions between balls
-	// only loop over every particle interaction once
-	for (int idx1{}; idx1 < m_pBalls.size() - 1; ++idx1)
+	if (m_pBalls.size() > 0)
 	{
-		for (int idx2{ idx1 + 1 }; idx2 < m_pBalls.size(); ++idx2)
+		// handle collisions between balls
+		// only loop over every particle interaction once
+		for (int idx1{}; idx1 < m_pBalls.size() - 1; ++idx1)
 		{
-			m_pBalls[idx1]->CheckCollision(*m_pBalls[idx2]);
+			for (int idx2{ idx1 + 1 }; idx2 < m_pBalls.size(); ++idx2)
+			{
+				m_pBalls[idx1]->CheckCollision(*m_pBalls[idx2]);
+			}
 		}
 	}
 
-	//// handle collisions between the player and the balls
-	//for (Ball& ball : m_pBalls)
-	//{
-	//	//m_pPlayer->CheckCollisionWithBall(ball);
-	//}
+	// kill balls that fell into a hole
+	for (const std::unique_ptr<Ball>& pBall: m_pBalls)
+	{
+		for (const std::unique_ptr<Hole>& pHole : m_pHoles)
+		{
+			pHole->CheckFallsIn(*pBall);
+		}
+	}
+
+	// handle collisions between the player and the balls
+	for (const std::unique_ptr<Ball>& pBall : m_pBalls)
+	{
+		m_pPlayer->CheckHitsPlayer(*pBall);
+	}
 
 	// move all dead balls to the back of the list
 	auto removeIt{ std::remove_if(m_pBalls.begin(), m_pBalls.end(),
 		[&](const std::unique_ptr<Ball>& pBall) { return pBall->IsDead(); }) };
 
-	// count the points of all (non-projectile) removed balls
-	for (auto it{ removeIt }; it != m_pBalls.end(); ++it)
-	{
-		if (!(*it)->IsProjectile())
-		{
-			AddPoints(10);
-		}
-	}
 	// actually remove the balls
 	if (removeIt != m_pBalls.end())
 	{
@@ -295,7 +308,12 @@ void Game::Draw() const
 	glClearColor(0.f, 0.f, 0.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// draw red balls
+	for (const std::unique_ptr<Hole>& pHole : m_pHoles)
+	{
+		pHole->Draw();
+	}
+
+	// draw balls
 	for (const std::unique_ptr<Ball>& pBall : m_pBalls)
 	{
 		pBall->Draw();
@@ -305,14 +323,10 @@ void Game::Draw() const
 	m_pPlayer->Draw();
 
 	// draw score
-	if (m_pScoreText->IsCreationOk())
+	if (m_pLivesText->IsCreationOk())
 	{
-		m_pScoreText->Draw(Point2f{ 10.f, m_Viewport.height - 10.f - m_pScoreText->GetHeight() });
+		m_pLivesText->Draw(Point2f{ 10.f, m_Viewport.height - 10.f - m_pLivesText->GetHeight() });
 	}
-}
-
-void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
-{
 }
 
 void Game::ProcessKeyUpEvent(const SDL_KeyboardEvent& e)

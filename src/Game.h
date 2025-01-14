@@ -9,6 +9,7 @@ class Ball;
 class BoundingBox;
 class Texture;
 class Player;
+class Hole;
 
 class Game
 {
@@ -28,7 +29,10 @@ public:
 	void Draw() const;
 
 	// Event handling
-	void ProcessKeyDownEvent(const SDL_KeyboardEvent& e);
+	void ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
+	{
+
+	}
 
 	void ProcessKeyUpEvent(const SDL_KeyboardEvent& e);
 
@@ -50,7 +54,7 @@ public:
 		return m_Viewport;
 	}
 
-	static void AddPoints(int amount);
+	static void AddLives(int amount);
 private:
 	// DATA MEMBERS
 	// The window properties
@@ -69,15 +73,17 @@ private:
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
 
-	void UpdateScoreText();
+	void UpdateLivesText();
 
-	static int m_points;
-	int m_pointsOnText;
-	std::unique_ptr<Texture> m_pScoreText;
+	static int m_lives;
+	int m_livesOnText;
+	std::unique_ptr<Texture> m_pLivesText;
 
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
 
 	std::vector<std::unique_ptr<Ball>> m_pBalls;
+
+	std::vector<std::unique_ptr<Hole>> m_pHoles;
 
 	std::unique_ptr<Player> m_pPlayer;
 };

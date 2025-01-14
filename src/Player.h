@@ -13,6 +13,7 @@ public:
 	void Update(float elapsedSec, const BoundingBox* pBoundingBox);
 	void Draw() const;
 	void ReflectAroundPillar();
+	bool CheckHitsPlayer(const Ball& ball);
 
 	std::unique_ptr<Ball> ShootBall() const;
 private:
@@ -22,4 +23,6 @@ private:
 
 	ThreeBlade m_pos;
 	ThreeBlade m_pivotPos;
+
+	float m_damageCountdown;
 };
