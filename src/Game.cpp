@@ -27,6 +27,7 @@ Game::Game(const Window& window)
 	, m_Initialized{ false }
 	, m_MaxElapsedSeconds{ 0.1f }
 	, m_livesOnText{ 0 }
+	, m_spawnCountdown{ 10.f }
 {
 	InitializeGameEngine();
 
@@ -35,10 +36,7 @@ Game::Game(const Window& window)
 
 	for (int idx{}; idx < 10; ++idx)
 	{
-		ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 1.f, 1.f};
-		TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0};
-		Motor velocity1{ Motor::Translation(float(rand() % 100), moveDirection1)};
-		m_pBalls.emplace_back(std::make_unique<Ball>(pos1, velocity1, false));
+		SpawnBall();
 	}
 
 	// create boundingbox
@@ -248,12 +246,23 @@ void Game::UpdateLivesText()
 	m_livesOnText = m_lives;
 }
 
+void Game::SpawnBall()
+{
+	// spawn a ball with a random speed and velocity
+	ThreeBlade pos1{ float(std::rand() % int(m_Viewport.width)) , float(std::rand() % int(m_Viewport.height)), 1.f, 1.f };
+	TwoBlade moveDirection1{ float(std::rand() % 21 - 10), float(std::rand() % 21 - 10), 0, 0, 0, 0 };
+	Motor velocity1{ Motor::Translation(float(rand() % 100 + 100), moveDirection1) };
+	m_pBalls.emplace_back(std::make_unique<Ball>(pos1, velocity1, false));
+}
+
 void Game::Update(float elapsedSec)
 {
+
 	if (m_livesOnText != m_lives)
 	{
 		UpdateLivesText();
 	}
+	if (m_lives <= 0) return; // freeze the game if the player ran out of lives (and the text is already updated)
 
 	// update balls
 	for (const std::unique_ptr<Ball>& pBall : m_pBalls)
@@ -300,6 +309,14 @@ void Game::Update(float elapsedSec)
 	if (removeIt != m_pBalls.end())
 	{
 		m_pBalls.erase(removeIt);
+	}
+
+	// spawn new balls
+	m_spawnCountdown -= elapsedSec;
+	if (m_spawnCountdown <= 0.f)
+	{
+		SpawnBall();
+		m_spawnCountdown = float(rand() % 3 + 1);
 	}
 }
 

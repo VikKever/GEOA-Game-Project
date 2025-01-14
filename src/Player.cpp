@@ -149,7 +149,7 @@ bool Player::CheckHitsPlayer(const Ball& ball)
 	const ThreeBlade flatPos{ m_pos[0], m_pos[1], 0, 1 };
 	if ((ball.GetFlatPos() & flatPos).Norm() < (Ball::SIZE / 2 + SIZE / 2))
 	{
-		Game::AddLives(-1);
+		Game::AddLives(-5);
 		m_damageCountdown = 2.f; // the player can't be hurt for 2 seconds
 		m_pos[2] = 0.f; // remove energy
 		return true;
@@ -159,8 +159,8 @@ bool Player::CheckHitsPlayer(const Ball& ball)
 
 std::unique_ptr<Ball> Player::ShootBall() const
 {
-	const float shootVelocity{ 5.f };
-	OneBlade velocityVector{ (m_pos & m_pivotPos) | ThreeBlade{0, 0, 0} };
+	const float shootVelocity{ 500.f };
+	OneBlade velocityVector{ (m_pos & m_pivotPos).Normalized() | ThreeBlade{0, 0, 0} };
 	velocityVector[3] = 0.f; // no energy gain/loss
 	const Motor ballVelocity{ GAUtils::TranslationFromOneBlade(shootVelocity * velocityVector) };
 	const ThreeBlade posWithEnergy{ m_pos[0], m_pos[1], 1.f, 1.f };

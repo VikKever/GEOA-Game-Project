@@ -74,12 +74,15 @@ private:
 	void CleanupGameEngine( );
 
 	void UpdateLivesText();
+	void SpawnBall();
 
 	static int m_lives;
 	int m_livesOnText;
 	std::unique_ptr<Texture> m_pLivesText;
 
 	std::unique_ptr<BoundingBox> m_pBoundingBox;
+
+	float m_spawnCountdown;
 
 	std::vector<std::unique_ptr<Ball>> m_pBalls;
 
